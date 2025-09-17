@@ -1,11 +1,6 @@
 import core
 import gleam/result
-import gleeunit
 import schema.{Company, JobListing}
-
-pub fn main() {
-  gleeunit.main()
-}
 
 pub fn extract_jobs_success_test() {
   let input =
