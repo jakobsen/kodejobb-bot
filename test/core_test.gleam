@@ -1,4 +1,5 @@
 import core
+import gleam/option.{Some}
 import gleam/result
 import schema.{Company, JobListing}
 
@@ -36,9 +37,9 @@ pub fn extract_jobs_success_test() {
       published: "2025-01-01",
       job_type: "premium",
       company: Company(
-        image_url: "https://cdn2.thecatapi.com/images/dmt.jpg",
-        logo_real: "https://cdn2.thecatapi.com/images/dmt.jpg",
-        logo_without_size: "https://cdn2.thecatapi.com/images/dmt.jpg",
+        image_url: Some("https://cdn2.thecatapi.com/images/dmt.jpg"),
+        logo_real: Some("https://cdn2.thecatapi.com/images/dmt.jpg"),
+        logo_without_size: Some("https://cdn2.thecatapi.com/images/dmt.jpg"),
         name: "Eriks rør og kjør",
       ),
     ),

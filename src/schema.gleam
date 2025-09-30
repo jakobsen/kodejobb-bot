@@ -1,4 +1,5 @@
 import gleam/dynamic/decode
+import gleam/option.{type Option}
 
 pub type ApiResponse {
   ApiResponse(jobs: List(JobListing))
@@ -19,17 +20,20 @@ pub type JobListing {
 
 pub type Company {
   Company(
-    image_url: String,
-    logo_real: String,
-    logo_without_size: String,
+    image_url: Option(String),
+    logo_real: Option(String),
+    logo_without_size: Option(String),
     name: String,
   )
 }
 
 pub fn company_decoder() -> decode.Decoder(Company) {
-  use image_url <- decode.field("imageUrl", decode.string)
-  use logo_real <- decode.field("logoReal", decode.string)
-  use logo_without_size <- decode.field("logoWithoutSize", decode.string)
+  use image_url <- decode.field("imageUrl", decode.optional(decode.string))
+  use logo_real <- decode.field("logoReal", decode.optional(decode.string))
+  use logo_without_size <- decode.field(
+    "logoWithoutSize",
+    decode.optional(decode.string),
+  )
   use name <- decode.field("name", decode.string)
 
   decode.success(Company(image_url:, logo_real:, logo_without_size:, name:))
