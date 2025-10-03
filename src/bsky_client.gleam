@@ -6,7 +6,7 @@ import gleam/httpc
 import gleam/json
 import gleam/result
 import gleam/time/calendar
-import gleam/time/timestamp.{type Timestamp}
+import gleam/time/timestamp
 import gleam/uri
 
 const base_url = "https://bsky.social"
