@@ -4,6 +4,7 @@ import gleam/http
 import gleam/http/request
 import gleam/httpc
 import gleam/json
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/calendar
 import gleam/time/timestamp
@@ -14,6 +15,7 @@ const base_url = "https://bsky.social"
 pub type BskyError {
   HttpError(httpc.HttpError)
   JsonParseError(json.DecodeError)
+  EmptyThread
 }
 
 fn base_uri() -> uri.Uri {
@@ -53,14 +55,43 @@ pub fn create_session() -> Result(SessionResponse, BskyError) {
 pub fn create_post(
   text: String,
   session: SessionResponse,
-) -> Result(String, BskyError) {
+  reply: Option(BskyReply),
+) -> Result(BskyCreatePostResponse, BskyError) {
   let now = timestamp.system_time() |> timestamp.to_rfc3339(calendar.utc_offset)
-  let post =
-    json.object([
-      #("$type", json.string("app.bsky.feed.post")),
-      #("text", json.string(text)),
-      #("createdAt", json.string(now)),
-    ])
+  let post = case reply {
+    None ->
+      json.object([
+        #("$type", json.string("app.bsky.feed.post")),
+        #("text", json.string(text)),
+        #("createdAt", json.string(now)),
+      ])
+    Some(reply) ->
+      json.object([
+        #("$type", json.string("app.bsky.feed.post")),
+        #("text", json.string(text)),
+        #("createdAt", json.string(now)),
+        #(
+          "reply",
+          json.object([
+            #(
+              "root",
+              json.object([
+                #("uri", json.string(reply.root.uri)),
+                #("cid", json.string(reply.root.cid)),
+              ]),
+            ),
+            #(
+              "parent",
+              json.object([
+                #("uri", json.string(reply.parent.uri)),
+                #("cid", json.string(reply.parent.cid)),
+              ]),
+            ),
+          ]),
+        ),
+      ])
+  }
+
   let body =
     json.object([
       #("repo", json.string(session.did)),
@@ -68,6 +99,7 @@ pub fn create_post(
       #("record", post),
     ])
     |> json.to_string()
+    |> echo
 
   let assert Ok(req) =
     uri.Uri(..base_uri(), path: "/xrpc/com.atproto.repo.createRecord")
@@ -82,7 +114,47 @@ pub fn create_post(
     |> httpc.send()
     |> result.map_error(HttpError),
   )
-  Ok(response.body)
+  json.parse(from: response.body, using: create_post_response_decoder())
+  |> result.map_error(JsonParseError)
+  |> echo
+}
+
+pub fn create_thread(
+  posts: List(String),
+  session: SessionResponse,
+) -> Result(Nil, BskyError) {
+  case posts {
+    [] -> Error(EmptyThread)
+    [first_post, ..rest] -> start_thread(first_post, rest, session)
+  }
+}
+
+fn start_thread(
+  first_post: String,
+  rest: List(String),
+  session: SessionResponse,
+) -> Result(Nil, BskyError) {
+  use root_post <- result.try(create_post(first_post, session, None))
+  continue_thread(root_post, root_post, rest, session)
+}
+
+fn continue_thread(
+  root: BskyCreatePostResponse,
+  parent: BskyCreatePostResponse,
+  remaining_posts: List(String),
+  session: SessionResponse,
+) -> Result(Nil, BskyError) {
+  case remaining_posts {
+    [] -> Ok(Nil)
+    [next_post, ..rest] -> {
+      use next_parent <- result.try(create_post(
+        next_post,
+        session,
+        Some(BskyReply(root:, parent:)),
+      ))
+      continue_thread(root, next_parent, rest, session)
+    }
+  }
 }
 
 pub type SessionResponse {
@@ -93,6 +165,20 @@ pub fn session_response_decoder() -> decode.Decoder(SessionResponse) {
   use access_jwt <- decode.field("accessJwt", decode.string)
   use did <- decode.field("did", decode.string)
   decode.success(SessionResponse(access_jwt:, did:))
+}
+
+pub type BskyCreatePostResponse {
+  BskyCreatePostResponse(uri: String, cid: String)
+}
+
+pub type BskyReply {
+  BskyReply(root: BskyCreatePostResponse, parent: BskyCreatePostResponse)
+}
+
+fn create_post_response_decoder() -> decode.Decoder(BskyCreatePostResponse) {
+  use uri <- decode.field("uri", decode.string)
+  use cid <- decode.field("cid", decode.string)
+  decode.success(BskyCreatePostResponse(uri:, cid:))
 }
 
 fn get_env_variable(key: String) -> String {
