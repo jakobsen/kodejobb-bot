@@ -3,7 +3,8 @@ import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/httpc
-import gleam/json
+import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/calendar
@@ -57,40 +58,7 @@ pub fn create_post(
   session: SessionResponse,
   reply: Option(BskyReply),
 ) -> Result(BskyCreatePostResponse, BskyError) {
-  let now = timestamp.system_time() |> timestamp.to_rfc3339(calendar.utc_offset)
-  let post = case reply {
-    None ->
-      json.object([
-        #("$type", json.string("app.bsky.feed.post")),
-        #("text", json.string(text)),
-        #("createdAt", json.string(now)),
-      ])
-    Some(reply) ->
-      json.object([
-        #("$type", json.string("app.bsky.feed.post")),
-        #("text", json.string(text)),
-        #("createdAt", json.string(now)),
-        #(
-          "reply",
-          json.object([
-            #(
-              "root",
-              json.object([
-                #("uri", json.string(reply.root.uri)),
-                #("cid", json.string(reply.root.cid)),
-              ]),
-            ),
-            #(
-              "parent",
-              json.object([
-                #("uri", json.string(reply.parent.uri)),
-                #("cid", json.string(reply.parent.cid)),
-              ]),
-            ),
-          ]),
-        ),
-      ])
-  }
+  let post = create_post_payload(text, reply)
 
   let body =
     json.object([
@@ -99,7 +67,6 @@ pub fn create_post(
       #("record", post),
     ])
     |> json.to_string()
-    |> echo
 
   let assert Ok(req) =
     uri.Uri(..base_uri(), path: "/xrpc/com.atproto.repo.createRecord")
@@ -116,7 +83,40 @@ pub fn create_post(
   )
   json.parse(from: response.body, using: create_post_response_decoder())
   |> result.map_error(JsonParseError)
-  |> echo
+}
+
+pub fn create_post_payload(text: String, reply: Option(BskyReply)) -> Json {
+  let now = timestamp.system_time() |> timestamp.to_rfc3339(calendar.utc_offset)
+  let base_fields = [
+    #("$type", json.string("app.bsky.feed.post")),
+    #("text", json.string(text)),
+    #("createdAt", json.string(now)),
+  ]
+  let reply_fields = case reply {
+    None -> []
+    Some(reply) -> [
+      #(
+        "reply",
+        json.object([
+          #(
+            "root",
+            json.object([
+              #("uri", json.string(reply.root.uri)),
+              #("cid", json.string(reply.root.cid)),
+            ]),
+          ),
+          #(
+            "parent",
+            json.object([
+              #("uri", json.string(reply.parent.uri)),
+              #("cid", json.string(reply.parent.cid)),
+            ]),
+          ),
+        ]),
+      ),
+    ]
+  }
+  json.object(list.append(base_fields, reply_fields))
 }
 
 pub fn create_thread(
