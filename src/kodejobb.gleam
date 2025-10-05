@@ -40,7 +40,7 @@ pub fn main() {
 fn thread_root(new_jobs: List(JobListing)) -> String {
   let number_of_jobs = list.length(new_jobs)
   let number_word = case number_of_jobs {
-    1 -> "en"
+    1 -> "én"
     2 -> "to"
     3 -> "tre"
     4 -> "fire"
@@ -53,12 +53,12 @@ fn thread_root(new_jobs: List(JobListing)) -> String {
     x -> int.to_string(x)
   }
   let pluralized_jobs = case number_of_jobs {
-    1 -> "jobb"
-    _ -> "jobber"
+    1 -> "ny jobb"
+    _ -> "nye jobber"
   }
   "Det er "
   <> number_word
-  <> " nye "
+  <> " "
   <> pluralized_jobs
   <> " på https://kodejobb.no"
 }
