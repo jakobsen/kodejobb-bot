@@ -1,5 +1,5 @@
 import core
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleam/result
 import gleam/set
 import schema.{Company, JobListing}
@@ -93,4 +93,23 @@ pub fn reject_seen_jobs_test() {
   let jobs = [job_to_reject, job_to_keep]
   let filtered_jobs = core.reject_seen_jobs(jobs, seen_job_ids)
   assert filtered_jobs == [job_to_keep]
+}
+
+pub fn byte_index_of_simple_test() {
+  let result = core.byte_index_of(in: "Hello, World!", find: "World!")
+  assert result == Some(7)
+}
+
+pub fn byte_index_of_not_found_test() {
+  let found_index = core.byte_index_of(in: "Nothing", find: "Something")
+  assert found_index == None
+}
+
+pub fn byte_index_of_emoji_test() {
+  let result =
+    core.byte_index_of(
+      in: "✨ example mentioning @atproto.com to share the URL 👨‍❤️‍👨 https://en.wikipedia.org/wiki/CBOR.",
+      find: "https://en.wikipedia.org/wiki/CBOR.",
+    )
+  assert result == Some(74)
 }

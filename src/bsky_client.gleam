@@ -1,4 +1,6 @@
+import core
 import envoy
+import gleam/bit_array
 import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
@@ -6,6 +8,7 @@ import gleam/httpc
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/regexp
 import gleam/result
 import gleam/time/calendar
 import gleam/time/timestamp
@@ -116,7 +119,71 @@ pub fn create_post_payload(text: String, reply: Option(BskyReply)) -> Json {
       ),
     ]
   }
-  json.object(list.append(base_fields, reply_fields))
+  let uri_facets =
+    parse_uri_facets(text)
+    |> list.map(fn(facet) {
+      json.object([
+        #(
+          "index",
+          json.object([
+            #("byteStart", json.int(facet.index.byte_start)),
+            #("byteEnd", json.int(facet.index.byte_end)),
+          ]),
+        ),
+        #(
+          "features",
+          json.preprocessed_array([
+            json.object([
+              #("$type", json.string("app.bsky.richtext.facet#link")),
+              #("uri", json.string(facet.uri)),
+            ]),
+          ]),
+        ),
+      ])
+    })
+
+  base_fields
+  |> list.append(reply_fields)
+  |> list.append([#("facets", json.preprocessed_array(uri_facets))])
+  |> json.object()
+}
+
+pub type Facet {
+  LinkFacet(index: Index, uri: String)
+}
+
+pub type Index {
+  Index(byte_start: Int, byte_end: Int)
+}
+
+pub fn parse_uri_facets(post: String) -> List(Facet) {
+  let assert Ok(uri_regex) =
+    regexp.from_string(
+      "\\b(https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*[-a-zA-Z0-9@%_\\+~#//=])?)",
+    )
+  regexp.scan(content: post, with: uri_regex)
+  |> echo
+  |> list.map(fn(match) -> Option(Facet) {
+    case match {
+      regexp.Match(_, [Some(link), ..]) -> {
+        let byte_start = core.byte_index_of(in: post, find: link)
+        case byte_start {
+          Some(byte_start) -> {
+            let link_byte_length =
+              bit_array.from_string(link) |> bit_array.byte_size()
+            Some(LinkFacet(
+              index: Index(byte_start, byte_start + link_byte_length),
+              uri: link,
+            ))
+          }
+          None -> None
+        }
+      }
+      _ -> None
+    }
+  })
+  |> option.values()
+  |> echo
 }
 
 pub fn create_thread(
