@@ -162,7 +162,6 @@ pub fn parse_uri_facets(post: String) -> List(Facet) {
       "\\b(https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*[-a-zA-Z0-9@%_\\+~#//=])?)",
     )
   regexp.scan(content: post, with: uri_regex)
-  |> echo
   |> list.map(fn(match) -> Option(Facet) {
     case match {
       regexp.Match(_, [Some(link), ..]) -> {
@@ -183,7 +182,6 @@ pub fn parse_uri_facets(post: String) -> List(Facet) {
     }
   })
   |> option.values()
-  |> echo
 }
 
 pub fn create_thread(
