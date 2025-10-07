@@ -60,11 +60,17 @@ fn thread_root(new_jobs: List(JobListing)) -> String {
   <> number_word
   <> " "
   <> pluralized_jobs
-  <> " på https://kodejobb.no"
+  <> " på https://kodejobb.no 🧵"
 }
 
 fn job_message(job: JobListing) -> String {
-  job.company.name <> " søker " <> job.application_title
+  "🏢 "
+  <> job.company.name
+  <> "\n💼 "
+  <> job.application_title
+  <> "\n🔗 "
+  <> "https://kodejobb.no"
+  <> job.published_url
 }
 
 fn post_new_jobs_thread(new_jobs: List(JobListing)) -> Result(Nil, AppError) {
