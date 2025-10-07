@@ -1,0 +1,26 @@
+name: run
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.1.2"
+          gleam-version: "1.12.0"
+          rebar3-version: "3"
+      - run: gleam deps download
+      - run: gleam run
+        env:
+          BSKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BSKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "[Bot] Post nye jobber til Bluesky"
+          git push
