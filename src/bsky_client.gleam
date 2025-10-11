@@ -98,54 +98,62 @@ pub fn create_post_payload(text: String, reply: Option(BskyReply)) -> Json {
   let reply_fields = case reply {
     None -> []
     Some(reply) -> [
-      #(
-        "reply",
-        json.object([
-          #(
-            "root",
-            json.object([
-              #("uri", json.string(reply.root.uri)),
-              #("cid", json.string(reply.root.cid)),
-            ]),
-          ),
-          #(
-            "parent",
-            json.object([
-              #("uri", json.string(reply.parent.uri)),
-              #("cid", json.string(reply.parent.cid)),
-            ]),
-          ),
-        ]),
-      ),
+      #("reply", reply_json(reply)),
     ]
   }
-  let uri_facets =
-    parse_uri_facets(text)
-    |> list.map(fn(facet) {
-      json.object([
-        #(
-          "index",
-          json.object([
-            #("byteStart", json.int(facet.index.byte_start)),
-            #("byteEnd", json.int(facet.index.byte_end)),
-          ]),
-        ),
-        #(
-          "features",
-          json.preprocessed_array([
-            json.object([
-              #("$type", json.string("app.bsky.richtext.facet#link")),
-              #("uri", json.string(facet.uri)),
-            ]),
-          ]),
-        ),
-      ])
-    })
+  let facet_fields = [
+    #(
+      "facets",
+      parse_uri_facets(text)
+        |> list.map(facet_to_json)
+        |> json.preprocessed_array,
+    ),
+  ]
 
   base_fields
   |> list.append(reply_fields)
-  |> list.append([#("facets", json.preprocessed_array(uri_facets))])
+  |> list.append(facet_fields)
   |> json.object()
+}
+
+fn reply_json(reply: BskyReply) -> Json {
+  json.object([
+    #(
+      "root",
+      json.object([
+        #("uri", json.string(reply.root.uri)),
+        #("cid", json.string(reply.root.cid)),
+      ]),
+    ),
+    #(
+      "parent",
+      json.object([
+        #("uri", json.string(reply.parent.uri)),
+        #("cid", json.string(reply.parent.cid)),
+      ]),
+    ),
+  ])
+}
+
+fn facet_to_json(facet: Facet) -> Json {
+  json.object([
+    #(
+      "index",
+      json.object([
+        #("byteStart", json.int(facet.index.byte_start)),
+        #("byteEnd", json.int(facet.index.byte_end)),
+      ]),
+    ),
+    #(
+      "features",
+      json.preprocessed_array([
+        json.object([
+          #("$type", json.string("app.bsky.richtext.facet#link")),
+          #("uri", json.string(facet.uri)),
+        ]),
+      ]),
+    ),
+  ])
 }
 
 pub type Facet {
