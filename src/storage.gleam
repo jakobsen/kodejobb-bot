@@ -26,10 +26,16 @@ pub fn read_job_ids() -> Result(Set(String), FileError) {
 }
 
 pub fn append_job_ids(jobs: List(schema.JobListing)) -> Result(Nil, FileError) {
-  use _ <- result.try(ensure_file_exists())
-  jobs
-  |> list.map(fn(job) { job.id })
-  |> string.join("\n")
-  |> string.append("\n")
-  |> simplifile.append(to: filepath, contents: _)
+  case jobs {
+    [] -> Ok(Nil)
+
+    jobs -> {
+      use _ <- result.try(ensure_file_exists())
+      jobs
+      |> list.map(fn(job) { job.id })
+      |> string.join("\n")
+      |> string.append("\n")
+      |> simplifile.append(to: filepath, contents: _)
+    }
+  }
 }
